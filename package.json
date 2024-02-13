@@ -1,7 +1,7 @@
 {
   "name": "jasmine-ctrf-json-reporter",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.0.2",
+  "description": "A Jasmine JSON test results reporter that follows the CTRF schema",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -15,8 +15,8 @@
     "dist/",
     "README.md"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Matthew Thomas",
+  "license": "MIT",
   "devDependencies": {
     "@types/jasmine": "^5.1.1",
     "@types/node": "^20.9.2",

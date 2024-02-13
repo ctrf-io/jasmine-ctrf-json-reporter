@@ -1,8 +1,8 @@
-# Jasmine JSON Reporter - CTRF
+# Jasmine JSON test results report
 
-A jasmine test reporter to generate JSON test reports that are [CTRF](https://ctrf.io) compliant.
+A jasmine JSON test reporter to create test reports that follow the CTRF standard.
 
-[Common Test Report Format](https://ctrf.io) helps you generate consistent JSON reports that are agnostic of specific programming languages or test frameworks.
+[Common Test Report Format](https://ctrf.io) ensures the generation of uniform JSON test reports, independent of programming languages or test framework in use.
 
 ## Features
 
@@ -11,7 +11,45 @@ A jasmine test reporter to generate JSON test reports that are [CTRF](https://ct
 
 ## What is CTRF?
 
-A JSON test report schema that is the same structure, no matter which testing tool is used. It's created to provide consistent test reporting agnostic of specific programming languages or testing frameworks. Where many testing frameworks exist, each generating JSON reports in their own way, CTRF provides a standardised schema helping you generate the same report anywhere.
+CTRF is a universal JSON test report schema that addresses the lack of a standardized format for JSON test reports.
+
+**Consistency Across Tools:** Different testing tools and frameworks often produce reports in varied formats. CTRF ensures a uniform structure, making it easier to understand and compare reports, regardless of the testing tool used.
+
+**Language and Framework Agnostic:** It provides a universal reporting schema that works seamlessly with any programming language and testing framework.
+
+**Facilitates Better Analysis:** With a standardized format, programatically analyzing test outcomes across multiple platforms becomes more straightforward.
+
+```json
+{
+  "results": {
+    "tool": {
+      "name": "jasmine"
+    },
+    "summary": {
+      "tests": 1,
+      "passed": 1,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "other": 0,
+      "start": 1706828654274,
+      "stop": 1706828655782
+    },
+    "tests": [
+      {
+        "name": "ctrf should generate the same report with any tool",
+        "status": "passed",
+        "duration": 100
+      }
+    ],
+    "environment": {
+      "appName": "MyApp",
+      "buildName": "MyBuild",
+      "buildNumber": "1"
+    }
+  }
+}
+```
 
 ## Installation
 
@@ -24,9 +62,7 @@ Add the reporter to your spec/helpers file:
 ```javascript
 const CtrfReporter = require('jasmine-ctrf-json-reporter')
 
-jasmine.getEnv().addReporter(
-  new CtrfReporter({})
-)
+jasmine.getEnv().addReporter(new CtrfReporter({}))
 ```
 
 Run your tests:
@@ -43,17 +79,17 @@ The reporter supports several configuration options:
 
 ```javascript
 jasmine.getEnv().addReporter(
-    new CtrfReporter({
-        outputFile: 'custom-name.json', // Optional: Output file name. Defaults to 'ctrf-report.json'.
-        outputDir: 'custom-directory',  // Optional: Output directory path. Defaults to 'ctrf'.
-        appName: 'MyApp',               // Optional: Specify the name of the application under test.
-        appVersion: '1.0.0',            // Optional: Specify the version of the application under test.
-        osPlatform: 'linux',            // Optional: Specify the OS platform.
-        osRelease: '18.04',             // Optional: Specify the OS release version.
-        osVersion: '5.4.0',             // Optional: Specify the OS version.
-        buildName: 'MyApp Build',       // Optional: Specify the build name.
-        buildNumber: '100',             // Optional: Specify the build number.
-    })
+  new CtrfReporter({
+    outputFile: 'custom-name.json', // Optional: Output file name. Defaults to 'ctrf-report.json'.
+    outputDir: 'custom-directory', // Optional: Output directory path. Defaults to 'ctrf'.
+    appName: 'MyApp', // Optional: Specify the name of the application under test.
+    appVersion: '1.0.0', // Optional: Specify the version of the application under test.
+    osPlatform: 'linux', // Optional: Specify the OS platform.
+    osRelease: '18.04', // Optional: Specify the OS release version.
+    osVersion: '5.4.0', // Optional: Specify the OS version.
+    buildName: 'MyApp Build', // Optional: Specify the build name.
+    buildNumber: '100', // Optional: Specify the build number.
+  })
 )
 ```
 
