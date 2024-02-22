@@ -64,9 +64,6 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
 
     this.ctrfEnvironment = {}
 
-    console.log('before setfile aname')
-    console.log('filename is cons' + this.filename)
-
     if (this.reporterConfigOptions?.outputFile !== undefined)
       this.setFilename(this.reporterConfigOptions.outputFile)
 
@@ -101,15 +98,11 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
   }
 
   private setFilename(filename: string): void {
-    console.log('filename is before' + this.filename)
-    console.log('setfilename claled')
     if (filename.endsWith('.json')) {
       this.filename = filename
     } else {
       this.filename = `${filename}.json`
     }
-
-    console.log('filename is after ' + this.filename)
   }
 
   private mapStatus(jamineStatus: string): CtrfTestState {
