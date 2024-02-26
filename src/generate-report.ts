@@ -1,4 +1,5 @@
 import {
+  type CtrfTest,
   type CtrfEnvironment,
   type CtrfReport,
   type CtrfTestState,
@@ -79,7 +80,8 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
     }
   }
 
-  jasmineStarted(): void {
+  jasmineStarted(suiteInfo: jasmine.JasmineStartedInfo): void {
+    fs.writeFileSync('suite-info.json', JSON.stringify(suiteInfo))
     this.ctrfReport.results.summary.start = Date.now()
     this.setEnvironmentDetails(this.reporterConfigOptions ?? {})
     if (this.hasEnvironmentDetails(this.ctrfEnvironment)) {
@@ -88,11 +90,14 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
   }
 
   specDone(result: jasmine.SpecResult): void {
+    fs.writeFileSync('spec-result.json', JSON.stringify(result))
     this.updateCtrfTestResultsFromTestStats(result)
     this.updateCtrfTotalsFromSpecDone(result)
   }
 
   jasmineDone(_info: jasmine.JasmineDoneInfo): void {
+    fs.writeFileSync('done.json', JSON.stringify(_info))
+
     this.ctrfReport.results.summary.stop = Date.now()
     this.writeReportToFile(this.ctrfReport)
   }
@@ -145,11 +150,16 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
   }
 
   private updateCtrfTestResultsFromTestStats(result: any): void {
-    this.ctrfReport.results.tests.push({
+    const test: CtrfTest = {
       name: result.fullName,
       status: result.status,
       duration: typeof result.duration === 'number' ? result.duration : 0,
-    })
+    }
+
+    test.message = this.extractFailureDetails(result).message
+    test.trace = this.extractFailureDetails(result).trace
+
+    this.ctrfReport.results.tests.push(test)
   }
 
   setEnvironmentDetails(reporterConfigOptions: ReporterConfigOptions): void {
@@ -178,6 +188,23 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
 
   hasEnvironmentDetails(environment: CtrfEnvironment): boolean {
     return Object.keys(environment).length > 0
+  }
+
+  extractFailureDetails(testResult: jasmine.SpecResult): Partial<CtrfTest> {
+    if (
+      testResult.status === 'failed' &&
+      testResult.failedExpectations !== undefined
+    ) {
+      const failureDetails: Partial<CtrfTest> = {}
+      if (testResult.failedExpectations[0].message !== undefined) {
+        failureDetails.message = testResult.failedExpectations[0].message
+      }
+      if (testResult.failedExpectations[0].stack !== undefined) {
+        failureDetails.trace = testResult.failedExpectations[0].stack
+      }
+      return failureDetails
+    }
+    return {}
   }
 
   private writeReportToFile(data: CtrfReport): void {
