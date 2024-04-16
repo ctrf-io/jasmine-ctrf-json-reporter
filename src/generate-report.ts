@@ -27,7 +27,7 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
   readonly ctrfReport: CtrfReport
   readonly ctrfEnvironment: CtrfEnvironment
   readonly reporterConfigOptions: ReporterConfigOptions
-  readonly reporterName = 'jest-ctrf-json-reporter'
+  readonly reporterName = 'jasmine-ctrf-json-reporter'
   readonly defaultOutputFile = 'ctrf-report.json'
   readonly defaultOutputDir = 'ctrf'
   filename = this.defaultOutputFile
