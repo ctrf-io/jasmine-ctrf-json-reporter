@@ -7,6 +7,7 @@ import {
 import * as fs from 'fs'
 import jasmine = require('jasmine')
 import path = require('path')
+import * as crypto from 'crypto'
 
 interface ReporterConfigOptions {
   outputFile?: string
@@ -45,6 +46,11 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
       buildNumber: reporterOptions?.buildNumber ?? undefined,
     }
     this.ctrfReport = {
+      reportFormat: 'CTRF',
+      specVersion: '0.0.0',
+      reportId: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      generatedBy: 'jasmine-ctrf-json-reporter',
       results: {
         tool: {
           name: 'jasmine',
