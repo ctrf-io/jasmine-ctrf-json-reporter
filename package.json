@@ -3,6 +3,10 @@
   "version": "0.0.6",
   "description": "A Jasmine JSON test results reporter that follows the CTRF schema",
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./runtime": "./dist/runtime.js"
+  },
   "scripts": {
     "build": "tsc",
     "test": "jest",
