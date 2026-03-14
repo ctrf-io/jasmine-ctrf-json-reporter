@@ -8,6 +8,11 @@ import * as fs from 'fs'
 import jasmine = require('jasmine')
 import path = require('path')
 import * as crypto from 'crypto'
+import {
+  setGlobalTestRuntime,
+  createTestRuntime,
+  type RuntimeMessage,
+} from './runtime'
 
 interface ReporterConfigOptions {
   outputFile?: string
@@ -32,6 +37,10 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
   readonly defaultOutputFile = 'ctrf-report.json'
   readonly defaultOutputDir = 'ctrf'
   filename = this.defaultOutputFile
+
+  // Track current spec for runtime API
+  private currentSpecId: string | null = null
+  private pendingMessages: Map<string, RuntimeMessage[]> = new Map()
 
   constructor(reporterOptions: ReporterConfigOptions) {
     this.reporterConfigOptions = {
@@ -84,6 +93,30 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
         { recursive: true }
       )
     }
+
+    // Set up global runtime for extra() API
+    const runtime = createTestRuntime((message: RuntimeMessage) =>
+      this.applyRuntimeMessage(message)
+    )
+    setGlobalTestRuntime(runtime)
+  }
+
+  /**
+   * Handle incoming runtime messages (extra() calls)
+   * Messages are queued for current spec
+   */
+  private applyRuntimeMessage(message: RuntimeMessage): void {
+    if (!this.currentSpecId) {
+      if (process.env.DEBUG) {
+        console.warn('[CTRF] Runtime message received but no spec is active')
+      }
+      return
+    }
+
+    if (!this.pendingMessages.has(this.currentSpecId)) {
+      this.pendingMessages.set(this.currentSpecId, [])
+    }
+    this.pendingMessages.get(this.currentSpecId)!.push(message)
   }
 
   jasmineStarted(suiteInfo: jasmine.JasmineStartedInfo): void {
@@ -95,10 +128,20 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
     }
   }
 
+  /**
+   * Track spec begin for runtime context
+   */
+  specStarted(result: jasmine.SpecResult): void {
+    this.currentSpecId = result.fullName
+  }
+
   specDone(result: jasmine.SpecResult): void {
     fs.writeFileSync('spec-result.json', JSON.stringify(result))
     this.updateCtrfTestResultsFromTestStats(result)
     this.updateCtrfTotalsFromSpecDone(result)
+
+    // Clear current spec after processing
+    this.currentSpecId = null
   }
 
   jasmineDone(_info: jasmine.JasmineDoneInfo): void {
@@ -165,7 +208,63 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
     test.message = this.extractFailureDetails(result).message
     test.trace = this.extractFailureDetails(result).trace
 
+    // Apply any pending runtime messages (extra data) to this test
+    const specId = result.fullName
+    const messages = this.pendingMessages.get(specId)
+    if (messages && messages.length > 0) {
+      for (const message of messages) {
+        if (message.type === 'extra') {
+          test.extra = this.deepMerge(
+            (test.extra ?? {}) as Record<string, unknown>,
+            message.data
+          )
+        }
+      }
+      this.pendingMessages.delete(specId)
+    }
+
     this.ctrfReport.results.tests.push(test)
+  }
+
+  /**
+   * Deep merge two objects following CTRF merge rules:
+   * - Arrays: concatenated
+   * - Objects: recursively merged
+   * - Primitives: overwritten
+   */
+  private deepMerge(
+    target: Record<string, unknown>,
+    source: Record<string, unknown>
+  ): Record<string, unknown> {
+    const result = { ...target }
+
+    for (const [key, sourceValue] of Object.entries(source)) {
+      const targetValue = result[key]
+
+      if (Array.isArray(sourceValue)) {
+        result[key] = Array.isArray(targetValue)
+          ? [...targetValue, ...sourceValue]
+          : [...sourceValue]
+      } else if (
+        sourceValue !== null &&
+        typeof sourceValue === 'object' &&
+        !Array.isArray(sourceValue)
+      ) {
+        result[key] =
+          targetValue !== null &&
+          typeof targetValue === 'object' &&
+          !Array.isArray(targetValue)
+            ? this.deepMerge(
+                targetValue as Record<string, unknown>,
+                sourceValue as Record<string, unknown>
+              )
+            : { ...sourceValue }
+      } else {
+        result[key] = sourceValue
+      }
+    }
+
+    return result
   }
 
   setEnvironmentDetails(reporterConfigOptions: ReporterConfigOptions): void {
