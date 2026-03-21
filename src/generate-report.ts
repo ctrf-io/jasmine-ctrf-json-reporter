@@ -1,9 +1,10 @@
 import {
-  type CtrfTest,
-  type CtrfEnvironment,
-  type CtrfReport,
-  type CtrfTestState,
-} from '../types/ctrf.d'
+  type CTRFReport,
+  type Test as CtrfTestBase,
+  type TestStatus,
+  type Environment,
+  type Results,
+} from 'ctrf'
 import * as fs from 'fs'
 import jasmine = require('jasmine')
 import path = require('path')
@@ -13,6 +14,21 @@ import {
   createTestRuntime,
   type RuntimeMessage,
 } from './runtime'
+
+// Local overrides to keep backward-compatible string suite (canonical is string[])
+// TODO(v1): align suite to string[] and remove this override
+type JasmineTest = Omit<CtrfTestBase, 'suite'> & { suite?: string | string[] }
+// TODO(v1): align buildNumber to number and remove this override
+type JasmineEnvironment = Omit<Environment, 'buildNumber'> & {
+  buildNumber?: string | number
+}
+type JasmineResults = Omit<Results, 'tests' | 'environment'> & {
+  tests: JasmineTest[]
+  environment?: JasmineEnvironment
+}
+type JasmineCTRFReport = Omit<CTRFReport, 'results'> & {
+  results: JasmineResults
+}
 
 interface ReporterConfigOptions {
   outputFile?: string
@@ -30,8 +46,8 @@ interface ReporterConfigOptions {
 }
 
 class GenerateCtrfReport implements jasmine.CustomReporter {
-  readonly ctrfReport: CtrfReport
-  readonly ctrfEnvironment: CtrfEnvironment
+  readonly ctrfReport: JasmineCTRFReport
+  readonly ctrfEnvironment: JasmineEnvironment
   readonly reporterConfigOptions: ReporterConfigOptions
   readonly reporterName = 'jasmine-ctrf-json-reporter'
   readonly defaultOutputFile = 'ctrf-report.json'
@@ -159,7 +175,7 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
     }
   }
 
-  private mapStatus(jamineStatus: string): CtrfTestState {
+  private mapStatus(jamineStatus: string): TestStatus {
     switch (jamineStatus) {
       case 'passed':
         return 'passed'
@@ -199,7 +215,7 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
   }
 
   private updateCtrfTestResultsFromTestStats(result: any): void {
-    const test: CtrfTest = {
+    const test: JasmineTest = {
       name: result.fullName,
       status: result.status,
       duration: typeof result.duration === 'number' ? result.duration : 0,
@@ -291,16 +307,16 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
     }
   }
 
-  hasEnvironmentDetails(environment: CtrfEnvironment): boolean {
+  hasEnvironmentDetails(environment: JasmineEnvironment): boolean {
     return Object.keys(environment).length > 0
   }
 
-  extractFailureDetails(testResult: jasmine.SpecResult): Partial<CtrfTest> {
+  extractFailureDetails(testResult: jasmine.SpecResult): Partial<JasmineTest> {
     if (
       testResult.status === 'failed' &&
       testResult.failedExpectations !== undefined
     ) {
-      const failureDetails: Partial<CtrfTest> = {}
+      const failureDetails: Partial<JasmineTest> = {}
       if (testResult.failedExpectations[0].message !== undefined) {
         failureDetails.message = testResult.failedExpectations[0].message
       }
@@ -312,7 +328,7 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
     return {}
   }
 
-  private writeReportToFile(data: CtrfReport): void {
+  private writeReportToFile(data: JasmineCTRFReport): void {
     const filePath = path.join(
       this.reporterConfigOptions.outputDir ?? this.defaultOutputDir,
       this.filename
