@@ -15,61 +15,61 @@
  * ```
  */
 
-export const CTRF_JASMINE_RUNTIME_KEY = '__ctrfJasmineRuntime__'
+export const CTRF_JASMINE_RUNTIME_KEY = "__ctrfJasmineRuntime__";
 
-export type MessageProcessor = (message: RuntimeMessage) => void
+export type MessageProcessor = (message: RuntimeMessage) => void;
 
 export interface RuntimeMessage {
-  type: 'extra'
-  data: Record<string, any>
+	type: "extra";
+	data: Record<string, any>;
 }
 
 /**
  * JasmineTestRuntime interface for type exports
  */
 export interface JasmineTestRuntime {
-  extra(data: Record<string, any>): void
+	extra(data: Record<string, any>): void;
 }
 
 /**
  * Internal JasmineTestRuntime implementation - forwards extra() calls to the reporter
  */
 class JasmineTestRuntimeImpl implements JasmineTestRuntime {
-  private messageProcessor: MessageProcessor
+	private messageProcessor: MessageProcessor;
 
-  constructor(messageProcessor: MessageProcessor) {
-    this.messageProcessor = messageProcessor
-  }
+	constructor(messageProcessor: MessageProcessor) {
+		this.messageProcessor = messageProcessor;
+	}
 
-  extra(data: Record<string, any>): void {
-    this.messageProcessor({
-      type: 'extra',
-      data,
-    })
-  }
+	extra(data: Record<string, any>): void {
+		this.messageProcessor({
+			type: "extra",
+			data,
+		});
+	}
 }
 
 /**
  * Set the global runtime (called by reporter)
  */
 export function setGlobalTestRuntime(runtime: JasmineTestRuntime): void {
-  ;(globalThis as any)[CTRF_JASMINE_RUNTIME_KEY] = runtime
+	(globalThis as any)[CTRF_JASMINE_RUNTIME_KEY] = runtime;
 }
 
 /**
  * Get the global runtime (internal use)
  */
 function getGlobalTestRuntime(): JasmineTestRuntime | undefined {
-  return (globalThis as any)[CTRF_JASMINE_RUNTIME_KEY]
+	return (globalThis as any)[CTRF_JASMINE_RUNTIME_KEY];
 }
 
 /**
  * Create a runtime instance with a message processor
  */
 export function createTestRuntime(
-  messageProcessor: MessageProcessor
+	messageProcessor: MessageProcessor,
 ): JasmineTestRuntime {
-  return new JasmineTestRuntimeImpl(messageProcessor)
+	return new JasmineTestRuntimeImpl(messageProcessor);
 }
 
 /**
@@ -87,25 +87,25 @@ export function createTestRuntime(
  * ```
  */
 export const ctrf = {
-  /**
-   * Add extra data to the current spec's CTRF output.
-   * Call this from within spec code to attach custom metadata.
-   * Safe to call from helper functions - binds to currently executing spec.
-   */
-  extra(data: Record<string, any>): void {
-    const runtime = getGlobalTestRuntime()
-    if (runtime) {
-      runtime.extra(data)
-    } else {
-      // Safe no-op - don't throw, just warn in debug mode
-      if (process.env.DEBUG) {
-        console.warn(
-          '[CTRF] Runtime not available - extra() called outside of spec context'
-        )
-      }
-    }
-  },
-}
+	/**
+	 * Add extra data to the current spec's CTRF output.
+	 * Call this from within spec code to attach custom metadata.
+	 * Safe to call from helper functions - binds to currently executing spec.
+	 */
+	extra(data: Record<string, any>): void {
+		const runtime = getGlobalTestRuntime();
+		if (runtime) {
+			runtime.extra(data);
+		} else {
+			// Safe no-op - don't throw, just warn in debug mode
+			if (process.env.DEBUG) {
+				console.warn(
+					"[CTRF] Runtime not available - extra() called outside of spec context",
+				);
+			}
+		}
+	},
+};
 
 /**
  * Standalone extra function (alternative to ctrf.extra)
@@ -120,5 +120,5 @@ export const ctrf = {
  * ```
  */
 export function extra(data: Record<string, any>): void {
-  ctrf.extra(data)
+	ctrf.extra(data);
 }
