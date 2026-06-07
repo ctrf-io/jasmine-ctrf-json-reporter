@@ -1,350 +1,350 @@
+import type {
+	CTRFReport,
+	Test as CtrfTestBase,
+	TestStatus,
+	Environment,
+	Results,
+} from "ctrf";
+import * as fs from "node:fs";
+import jasmine = require("jasmine");
+import path = require("node:path");
+import * as crypto from "node:crypto";
 import {
-  type CTRFReport,
-  type Test as CtrfTestBase,
-  type TestStatus,
-  type Environment,
-  type Results,
-} from 'ctrf'
-import * as fs from 'fs'
-import jasmine = require('jasmine')
-import path = require('path')
-import * as crypto from 'crypto'
-import {
-  setGlobalTestRuntime,
-  createTestRuntime,
-  type RuntimeMessage,
-} from './runtime'
+	setGlobalTestRuntime,
+	createTestRuntime,
+	type RuntimeMessage,
+} from "./runtime";
 
 // Local overrides to keep backward-compatible string suite (canonical is string[])
 // TODO(v1): align suite to string[] and remove this override
-type JasmineTest = Omit<CtrfTestBase, 'suite'> & { suite?: string | string[] }
+type JasmineTest = Omit<CtrfTestBase, "suite"> & { suite?: string | string[] };
 // TODO(v1): align buildNumber to number and remove this override
-type JasmineEnvironment = Omit<Environment, 'buildNumber'> & {
-  buildNumber?: string | number
-}
-type JasmineResults = Omit<Results, 'tests' | 'environment'> & {
-  tests: JasmineTest[]
-  environment?: JasmineEnvironment
-}
-type JasmineCTRFReport = Omit<CTRFReport, 'results'> & {
-  results: JasmineResults
-}
+type JasmineEnvironment = Omit<Environment, "buildNumber"> & {
+	buildNumber?: string | number;
+};
+type JasmineResults = Omit<Results, "tests" | "environment"> & {
+	tests: JasmineTest[];
+	environment?: JasmineEnvironment;
+};
+type JasmineCTRFReport = Omit<CTRFReport, "results"> & {
+	results: JasmineResults;
+};
 
 interface ReporterConfigOptions {
-  outputFile?: string
-  outputDir?: string
-  minimal?: boolean
-  screenshot?: boolean
-  testType?: string
-  appName?: string | undefined
-  appVersion?: string | undefined
-  osPlatform?: string | undefined
-  osRelease?: string | undefined
-  osVersion?: string | undefined
-  buildName?: string | undefined
-  buildNumber?: string | undefined
+	outputFile?: string;
+	outputDir?: string;
+	minimal?: boolean;
+	screenshot?: boolean;
+	testType?: string;
+	appName?: string | undefined;
+	appVersion?: string | undefined;
+	osPlatform?: string | undefined;
+	osRelease?: string | undefined;
+	osVersion?: string | undefined;
+	buildName?: string | undefined;
+	buildNumber?: string | undefined;
 }
 
 class GenerateCtrfReport implements jasmine.CustomReporter {
-  readonly ctrfReport: JasmineCTRFReport
-  readonly ctrfEnvironment: JasmineEnvironment
-  readonly reporterConfigOptions: ReporterConfigOptions
-  readonly reporterName = 'jasmine-ctrf-json-reporter'
-  readonly defaultOutputFile = 'ctrf-report.json'
-  readonly defaultOutputDir = 'ctrf'
-  filename = this.defaultOutputFile
+	readonly ctrfReport: JasmineCTRFReport;
+	readonly ctrfEnvironment: JasmineEnvironment;
+	readonly reporterConfigOptions: ReporterConfigOptions;
+	readonly reporterName = "jasmine-ctrf-json-reporter";
+	readonly defaultOutputFile = "ctrf-report.json";
+	readonly defaultOutputDir = "ctrf";
+	filename = this.defaultOutputFile;
 
-  // Track current spec for runtime API
-  private currentSpecId: string | null = null
-  private pendingMessages: Map<string, RuntimeMessage[]> = new Map()
+	// Track current spec for runtime API
+	private currentSpecId: string | null = null;
+	private pendingMessages: Map<string, RuntimeMessage[]> = new Map();
 
-  constructor(reporterOptions: ReporterConfigOptions) {
-    this.reporterConfigOptions = {
-      outputFile: reporterOptions?.outputFile ?? this.defaultOutputFile,
-      outputDir: reporterOptions?.outputDir ?? this.defaultOutputDir,
-      appName: reporterOptions?.appName ?? undefined,
-      appVersion: reporterOptions?.appVersion ?? undefined,
-      osPlatform: reporterOptions?.osPlatform ?? undefined,
-      osRelease: reporterOptions?.osRelease ?? undefined,
-      osVersion: reporterOptions?.osVersion ?? undefined,
-      buildName: reporterOptions?.buildName ?? undefined,
-      buildNumber: reporterOptions?.buildNumber ?? undefined,
-    }
-    this.ctrfReport = {
-      reportFormat: 'CTRF',
-      specVersion: '0.0.0',
-      reportId: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      generatedBy: 'jasmine-ctrf-json-reporter',
-      results: {
-        tool: {
-          name: 'jasmine',
-        },
-        summary: {
-          tests: 0,
-          passed: 0,
-          failed: 0,
-          pending: 0,
-          skipped: 0,
-          other: 0,
-          start: 0,
-          stop: 0,
-        },
-        tests: [],
-      },
-    }
+	constructor(reporterOptions: ReporterConfigOptions) {
+		this.reporterConfigOptions = {
+			outputFile: reporterOptions?.outputFile ?? this.defaultOutputFile,
+			outputDir: reporterOptions?.outputDir ?? this.defaultOutputDir,
+			appName: reporterOptions?.appName ?? undefined,
+			appVersion: reporterOptions?.appVersion ?? undefined,
+			osPlatform: reporterOptions?.osPlatform ?? undefined,
+			osRelease: reporterOptions?.osRelease ?? undefined,
+			osVersion: reporterOptions?.osVersion ?? undefined,
+			buildName: reporterOptions?.buildName ?? undefined,
+			buildNumber: reporterOptions?.buildNumber ?? undefined,
+		};
+		this.ctrfReport = {
+			reportFormat: "CTRF",
+			specVersion: "0.0.0",
+			reportId: crypto.randomUUID(),
+			timestamp: new Date().toISOString(),
+			generatedBy: "jasmine-ctrf-json-reporter",
+			results: {
+				tool: {
+					name: "jasmine",
+				},
+				summary: {
+					tests: 0,
+					passed: 0,
+					failed: 0,
+					pending: 0,
+					skipped: 0,
+					other: 0,
+					start: 0,
+					stop: 0,
+				},
+				tests: [],
+			},
+		};
 
-    this.ctrfEnvironment = {}
+		this.ctrfEnvironment = {};
 
-    if (this.reporterConfigOptions?.outputFile !== undefined)
-      this.setFilename(this.reporterConfigOptions.outputFile)
+		if (this.reporterConfigOptions?.outputFile !== undefined)
+			this.setFilename(this.reporterConfigOptions.outputFile);
 
-    if (
-      !fs.existsSync(
-        this.reporterConfigOptions.outputDir ?? this.defaultOutputDir
-      )
-    ) {
-      fs.mkdirSync(
-        this.reporterConfigOptions.outputDir ?? this.defaultOutputDir,
-        { recursive: true }
-      )
-    }
+		if (
+			!fs.existsSync(
+				this.reporterConfigOptions.outputDir ?? this.defaultOutputDir,
+			)
+		) {
+			fs.mkdirSync(
+				this.reporterConfigOptions.outputDir ?? this.defaultOutputDir,
+				{ recursive: true },
+			);
+		}
 
-    // Set up global runtime for extra() API
-    const runtime = createTestRuntime((message: RuntimeMessage) =>
-      this.applyRuntimeMessage(message)
-    )
-    setGlobalTestRuntime(runtime)
-  }
+		// Set up global runtime for extra() API
+		const runtime = createTestRuntime((message: RuntimeMessage) =>
+			this.applyRuntimeMessage(message),
+		);
+		setGlobalTestRuntime(runtime);
+	}
 
-  /**
-   * Handle incoming runtime messages (extra() calls)
-   * Messages are queued for current spec
-   */
-  private applyRuntimeMessage(message: RuntimeMessage): void {
-    if (!this.currentSpecId) {
-      if (process.env.DEBUG) {
-        console.warn('[CTRF] Runtime message received but no spec is active')
-      }
-      return
-    }
+	/**
+	 * Handle incoming runtime messages (extra() calls)
+	 * Messages are queued for current spec
+	 */
+	private applyRuntimeMessage(message: RuntimeMessage): void {
+		if (!this.currentSpecId) {
+			if (process.env.DEBUG) {
+				console.warn("[CTRF] Runtime message received but no spec is active");
+			}
+			return;
+		}
 
-    if (!this.pendingMessages.has(this.currentSpecId)) {
-      this.pendingMessages.set(this.currentSpecId, [])
-    }
-    this.pendingMessages.get(this.currentSpecId)!.push(message)
-  }
+		if (!this.pendingMessages.has(this.currentSpecId)) {
+			this.pendingMessages.set(this.currentSpecId, []);
+		}
+		this.pendingMessages.get(this.currentSpecId)?.push(message);
+	}
 
-  jasmineStarted(suiteInfo: jasmine.JasmineStartedInfo): void {
-    fs.writeFileSync('suite-info.json', JSON.stringify(suiteInfo))
-    this.ctrfReport.results.summary.start = Date.now()
-    this.setEnvironmentDetails(this.reporterConfigOptions ?? {})
-    if (this.hasEnvironmentDetails(this.ctrfEnvironment)) {
-      this.ctrfReport.results.environment = this.ctrfEnvironment
-    }
-  }
+	jasmineStarted(suiteInfo: jasmine.JasmineStartedInfo): void {
+		fs.writeFileSync("suite-info.json", JSON.stringify(suiteInfo));
+		this.ctrfReport.results.summary.start = Date.now();
+		this.setEnvironmentDetails(this.reporterConfigOptions ?? {});
+		if (this.hasEnvironmentDetails(this.ctrfEnvironment)) {
+			this.ctrfReport.results.environment = this.ctrfEnvironment;
+		}
+	}
 
-  /**
-   * Track spec begin for runtime context
-   */
-  specStarted(result: jasmine.SpecResult): void {
-    this.currentSpecId = result.fullName
-  }
+	/**
+	 * Track spec begin for runtime context
+	 */
+	specStarted(result: jasmine.SpecResult): void {
+		this.currentSpecId = result.fullName;
+	}
 
-  specDone(result: jasmine.SpecResult): void {
-    fs.writeFileSync('spec-result.json', JSON.stringify(result))
-    this.updateCtrfTestResultsFromTestStats(result)
-    this.updateCtrfTotalsFromSpecDone(result)
+	specDone(result: jasmine.SpecResult): void {
+		fs.writeFileSync("spec-result.json", JSON.stringify(result));
+		this.updateCtrfTestResultsFromTestStats(result);
+		this.updateCtrfTotalsFromSpecDone(result);
 
-    // Clear current spec after processing
-    this.currentSpecId = null
-  }
+		// Clear current spec after processing
+		this.currentSpecId = null;
+	}
 
-  jasmineDone(_info: jasmine.JasmineDoneInfo): void {
-    fs.writeFileSync('done.json', JSON.stringify(_info))
+	jasmineDone(_info: jasmine.JasmineDoneInfo): void {
+		fs.writeFileSync("done.json", JSON.stringify(_info));
 
-    this.ctrfReport.results.summary.stop = Date.now()
-    this.writeReportToFile(this.ctrfReport)
-  }
+		this.ctrfReport.results.summary.stop = Date.now();
+		this.writeReportToFile(this.ctrfReport);
+	}
 
-  private setFilename(filename: string): void {
-    if (filename.endsWith('.json')) {
-      this.filename = filename
-    } else {
-      this.filename = `${filename}.json`
-    }
-  }
+	private setFilename(filename: string): void {
+		if (filename.endsWith(".json")) {
+			this.filename = filename;
+		} else {
+			this.filename = `${filename}.json`;
+		}
+	}
 
-  private mapStatus(jamineStatus: string): TestStatus {
-    switch (jamineStatus) {
-      case 'passed':
-        return 'passed'
-      case 'failed':
-        return 'failed'
-      case 'skipped':
-        return 'skipped'
-      case 'pending':
-        return 'pending'
-      default:
-        return 'other'
-    }
-  }
+	private mapStatus(jamineStatus: string): TestStatus {
+		switch (jamineStatus) {
+			case "passed":
+				return "passed";
+			case "failed":
+				return "failed";
+			case "skipped":
+				return "skipped";
+			case "pending":
+				return "pending";
+			default:
+				return "other";
+		}
+	}
 
-  private updateCtrfTotalsFromSpecDone(result: any): void {
-    this.ctrfReport.results.summary.tests += 1
+	private updateCtrfTotalsFromSpecDone(result: any): void {
+		this.ctrfReport.results.summary.tests += 1;
 
-    const status = this.mapStatus(result.status)
+		const status = this.mapStatus(result.status);
 
-    switch (status) {
-      case 'passed':
-        this.ctrfReport.results.summary.passed += 1
-        break
-      case 'failed':
-        this.ctrfReport.results.summary.failed += 1
-        break
-      case 'skipped':
-        this.ctrfReport.results.summary.skipped += 1
-        break
-      case 'pending':
-        this.ctrfReport.results.summary.pending += 1
-        break
-      default:
-        this.ctrfReport.results.summary.other += 1
-        break
-    }
-  }
+		switch (status) {
+			case "passed":
+				this.ctrfReport.results.summary.passed += 1;
+				break;
+			case "failed":
+				this.ctrfReport.results.summary.failed += 1;
+				break;
+			case "skipped":
+				this.ctrfReport.results.summary.skipped += 1;
+				break;
+			case "pending":
+				this.ctrfReport.results.summary.pending += 1;
+				break;
+			default:
+				this.ctrfReport.results.summary.other += 1;
+				break;
+		}
+	}
 
-  private updateCtrfTestResultsFromTestStats(result: any): void {
-    const test: JasmineTest = {
-      name: result.fullName,
-      status: result.status,
-      duration: typeof result.duration === 'number' ? result.duration : 0,
-    }
+	private updateCtrfTestResultsFromTestStats(result: any): void {
+		const test: JasmineTest = {
+			name: result.fullName,
+			status: result.status,
+			duration: typeof result.duration === "number" ? result.duration : 0,
+		};
 
-    test.message = this.extractFailureDetails(result).message
-    test.trace = this.extractFailureDetails(result).trace
+		test.message = this.extractFailureDetails(result).message;
+		test.trace = this.extractFailureDetails(result).trace;
 
-    // Apply any pending runtime messages (extra data) to this test
-    const specId = result.fullName
-    const messages = this.pendingMessages.get(specId)
-    if (messages && messages.length > 0) {
-      for (const message of messages) {
-        if (message.type === 'extra') {
-          test.extra = this.deepMerge(
-            (test.extra ?? {}) as Record<string, unknown>,
-            message.data
-          )
-        }
-      }
-      this.pendingMessages.delete(specId)
-    }
+		// Apply any pending runtime messages (extra data) to this test
+		const specId = result.fullName;
+		const messages = this.pendingMessages.get(specId);
+		if (messages && messages.length > 0) {
+			for (const message of messages) {
+				if (message.type === "extra") {
+					test.extra = this.deepMerge(
+						(test.extra ?? {}) as Record<string, unknown>,
+						message.data,
+					);
+				}
+			}
+			this.pendingMessages.delete(specId);
+		}
 
-    this.ctrfReport.results.tests.push(test)
-  }
+		this.ctrfReport.results.tests.push(test);
+	}
 
-  /**
-   * Deep merge two objects following CTRF merge rules:
-   * - Arrays: concatenated
-   * - Objects: recursively merged
-   * - Primitives: overwritten
-   */
-  private deepMerge(
-    target: Record<string, unknown>,
-    source: Record<string, unknown>
-  ): Record<string, unknown> {
-    const result = { ...target }
+	/**
+	 * Deep merge two objects following CTRF merge rules:
+	 * - Arrays: concatenated
+	 * - Objects: recursively merged
+	 * - Primitives: overwritten
+	 */
+	private deepMerge(
+		target: Record<string, unknown>,
+		source: Record<string, unknown>,
+	): Record<string, unknown> {
+		const result = { ...target };
 
-    for (const [key, sourceValue] of Object.entries(source)) {
-      const targetValue = result[key]
+		for (const [key, sourceValue] of Object.entries(source)) {
+			const targetValue = result[key];
 
-      if (Array.isArray(sourceValue)) {
-        result[key] = Array.isArray(targetValue)
-          ? [...targetValue, ...sourceValue]
-          : [...sourceValue]
-      } else if (
-        sourceValue !== null &&
-        typeof sourceValue === 'object' &&
-        !Array.isArray(sourceValue)
-      ) {
-        result[key] =
-          targetValue !== null &&
-          typeof targetValue === 'object' &&
-          !Array.isArray(targetValue)
-            ? this.deepMerge(
-                targetValue as Record<string, unknown>,
-                sourceValue as Record<string, unknown>
-              )
-            : { ...sourceValue }
-      } else {
-        result[key] = sourceValue
-      }
-    }
+			if (Array.isArray(sourceValue)) {
+				result[key] = Array.isArray(targetValue)
+					? [...targetValue, ...sourceValue]
+					: [...sourceValue];
+			} else if (
+				sourceValue !== null &&
+				typeof sourceValue === "object" &&
+				!Array.isArray(sourceValue)
+			) {
+				result[key] =
+					targetValue !== null &&
+					typeof targetValue === "object" &&
+					!Array.isArray(targetValue)
+						? this.deepMerge(
+								targetValue as Record<string, unknown>,
+								sourceValue as Record<string, unknown>,
+							)
+						: { ...sourceValue };
+			} else {
+				result[key] = sourceValue;
+			}
+		}
 
-    return result
-  }
+		return result;
+	}
 
-  setEnvironmentDetails(reporterConfigOptions: ReporterConfigOptions): void {
-    if (reporterConfigOptions.appName !== undefined) {
-      this.ctrfEnvironment.appName = reporterConfigOptions.appName
-    }
-    if (reporterConfigOptions.appVersion !== undefined) {
-      this.ctrfEnvironment.appVersion = reporterConfigOptions.appVersion
-    }
-    if (reporterConfigOptions.osPlatform !== undefined) {
-      this.ctrfEnvironment.osPlatform = reporterConfigOptions.osPlatform
-    }
-    if (reporterConfigOptions.osRelease !== undefined) {
-      this.ctrfEnvironment.osRelease = reporterConfigOptions.osRelease
-    }
-    if (reporterConfigOptions.osVersion !== undefined) {
-      this.ctrfEnvironment.osVersion = reporterConfigOptions.osVersion
-    }
-    if (reporterConfigOptions.buildName !== undefined) {
-      this.ctrfEnvironment.buildName = reporterConfigOptions.buildName
-    }
-    if (reporterConfigOptions.buildNumber !== undefined) {
-      this.ctrfEnvironment.buildNumber = reporterConfigOptions.buildNumber
-    }
-  }
+	setEnvironmentDetails(reporterConfigOptions: ReporterConfigOptions): void {
+		if (reporterConfigOptions.appName !== undefined) {
+			this.ctrfEnvironment.appName = reporterConfigOptions.appName;
+		}
+		if (reporterConfigOptions.appVersion !== undefined) {
+			this.ctrfEnvironment.appVersion = reporterConfigOptions.appVersion;
+		}
+		if (reporterConfigOptions.osPlatform !== undefined) {
+			this.ctrfEnvironment.osPlatform = reporterConfigOptions.osPlatform;
+		}
+		if (reporterConfigOptions.osRelease !== undefined) {
+			this.ctrfEnvironment.osRelease = reporterConfigOptions.osRelease;
+		}
+		if (reporterConfigOptions.osVersion !== undefined) {
+			this.ctrfEnvironment.osVersion = reporterConfigOptions.osVersion;
+		}
+		if (reporterConfigOptions.buildName !== undefined) {
+			this.ctrfEnvironment.buildName = reporterConfigOptions.buildName;
+		}
+		if (reporterConfigOptions.buildNumber !== undefined) {
+			this.ctrfEnvironment.buildNumber = reporterConfigOptions.buildNumber;
+		}
+	}
 
-  hasEnvironmentDetails(environment: JasmineEnvironment): boolean {
-    return Object.keys(environment).length > 0
-  }
+	hasEnvironmentDetails(environment: JasmineEnvironment): boolean {
+		return Object.keys(environment).length > 0;
+	}
 
-  extractFailureDetails(testResult: jasmine.SpecResult): Partial<JasmineTest> {
-    if (
-      testResult.status === 'failed' &&
-      testResult.failedExpectations !== undefined
-    ) {
-      const failureDetails: Partial<JasmineTest> = {}
-      if (testResult.failedExpectations[0].message !== undefined) {
-        failureDetails.message = testResult.failedExpectations[0].message
-      }
-      if (testResult.failedExpectations[0].stack !== undefined) {
-        failureDetails.trace = testResult.failedExpectations[0].stack
-      }
-      return failureDetails
-    }
-    return {}
-  }
+	extractFailureDetails(testResult: jasmine.SpecResult): Partial<JasmineTest> {
+		if (
+			testResult.status === "failed" &&
+			testResult.failedExpectations !== undefined
+		) {
+			const failureDetails: Partial<JasmineTest> = {};
+			if (testResult.failedExpectations[0].message !== undefined) {
+				failureDetails.message = testResult.failedExpectations[0].message;
+			}
+			if (testResult.failedExpectations[0].stack !== undefined) {
+				failureDetails.trace = testResult.failedExpectations[0].stack;
+			}
+			return failureDetails;
+		}
+		return {};
+	}
 
-  private writeReportToFile(data: JasmineCTRFReport): void {
-    const filePath = path.join(
-      this.reporterConfigOptions.outputDir ?? this.defaultOutputDir,
-      this.filename
-    )
-    const str = JSON.stringify(data, null, 2)
-    try {
-      fs.writeFileSync(filePath, str + '\n')
-      console.log(
-        `${this.reporterName}: successfully written ctrf json to %s/%s`,
-        this.reporterConfigOptions.outputDir,
-        this.filename
-      )
-    } catch (error) {
-      console.error(`Error writing ctrf json report:, ${String(error)}`)
-    }
-  }
+	private writeReportToFile(data: JasmineCTRFReport): void {
+		const filePath = path.join(
+			this.reporterConfigOptions.outputDir ?? this.defaultOutputDir,
+			this.filename,
+		);
+		const str = JSON.stringify(data, null, 2);
+		try {
+			fs.writeFileSync(filePath, `${str}\n`);
+			console.log(
+				`${this.reporterName}: successfully written ctrf json to %s/%s`,
+				this.reporterConfigOptions.outputDir,
+				this.filename,
+			);
+		} catch (error) {
+			console.error(`Error writing ctrf json report:, ${String(error)}`);
+		}
+	}
 }
 
-export = GenerateCtrfReport
+export = GenerateCtrfReport;
