@@ -9,12 +9,12 @@
 	},
 	"scripts": {
 		"build": "tsc",
-		"test": "jest",
+		"test": "npm run build && jasmine --config=spec/support/jasmine.mjs",
 		"lint": "biome lint --write . --unsafe",
 		"lint:check": "biome lint .",
 		"format": "biome format --write .",
 		"format:check": "biome format .",
-		"all": "npm run lint && npm run format:check && npm run build && npm run check",
+		"all": "npm run lint:check && npm run format:check && npm run test && npm run build",
 		"check": "biome check ."
 	},
 	"repository": {
@@ -52,9 +52,6 @@
 		"@types/jasmine": "6.0.0",
 		"@types/node": "25.9.2",
 		"jasmine": "6.3.0",
-		"jest": "30.4.2",
-		"jest-ctrf-json-reporter": "0.0.11",
-		"ts-jest": "29.4.11",
 		"typescript": "6.0.3"
 	},
 	"dependencies": {
