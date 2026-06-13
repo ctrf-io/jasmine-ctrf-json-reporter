@@ -1,3 +1,3 @@
-const GenerateCtrfReport = require("../../dist");
+const GenerateCtrfReport = require("../..");
 
 jasmine.getEnv().addReporter(new GenerateCtrfReport({}));
