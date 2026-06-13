@@ -6,8 +6,7 @@ import type {
 	Results,
 } from "ctrf";
 import * as fs from "node:fs";
-import jasmine = require("jasmine");
-import path = require("node:path");
+import path from "node:path";
 import * as crypto from "node:crypto";
 import {
 	setGlobalTestRuntime,
@@ -45,7 +44,7 @@ interface ReporterConfigOptions {
 	buildNumber?: string | undefined;
 }
 
-class GenerateCtrfReport implements jasmine.CustomReporter {
+export default class GenerateCtrfReport implements jasmine.CustomReporter {
 	readonly ctrfReport: JasmineCTRFReport;
 	readonly ctrfEnvironment: JasmineEnvironment;
 	readonly reporterConfigOptions: ReporterConfigOptions;
@@ -346,5 +345,3 @@ class GenerateCtrfReport implements jasmine.CustomReporter {
 		}
 	}
 }
-
-export = GenerateCtrfReport;
