@@ -62,7 +62,7 @@
 		"url": "https://github.com/ctrf-io/.github/blob/main/SECURITY.md"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.5.1",
+		"@biomejs/biome": "2.5.6",
 		"@types/jasmine": "6.0.0",
 		"@types/node": "26.0.1",
 		"jasmine": "6.3.0",
