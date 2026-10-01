@@ -64,7 +64,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.5.14",
 		"@types/jasmine": "6.0.0",
-		"@types/node": "26.6.1",
+		"@types/node": "26.6.3",
 		"jasmine": "7.0.0",
 		"tsup": "8.5.1",
 		"typescript": "6.0.3"
