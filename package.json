@@ -1,6 +1,6 @@
 {
 	"name": "jasmine-ctrf-json-reporter",
-	"version": "0.0.8-next.0",
+	"version": "0.1.0",
 	"description": "A Jasmine JSON test results reporter that follows the CTRF schema",
 	"type": "module",
 	"main": "./dist/index.cjs",
@@ -62,14 +62,14 @@
 		"url": "https://github.com/ctrf-io/.github/blob/main/SECURITY.md"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.5.14",
-		"@types/jasmine": "6.0.0",
-		"@types/node": "26.6.3",
+		"@biomejs/biome": "2.5.15",
+		"@types/jasmine": "7.0.0",
+		"@types/node": "26.6.4",
 		"jasmine": "7.0.0",
 		"tsup": "8.5.1",
 		"typescript": "6.0.3"
 	},
 	"dependencies": {
-		"ctrf": "0.3.0"
+		"ctrf": "0.4.0"
 	}
 }
