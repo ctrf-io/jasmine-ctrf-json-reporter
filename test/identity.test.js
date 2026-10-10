@@ -23,7 +23,13 @@ describe("identity lifecycle", () => {
 		expect(one.ctrfReport.runId).toBe("run");
 	});
 	it("allows explicit scope for otherwise indistinguishable specs", () => {
-		const reporter = new Reporter({ testIdResolver: () => "file-a-case" });
+		const reporter = new Reporter({
+			runId: "",
+			testIdResolver: () => "file-a-case",
+		});
+		expect(
+			JSON.parse(JSON.stringify(reporter.ctrfReport)).runId,
+		).toBeUndefined();
 		reporter.specDone({ fullName: "case", status: "pending", duration: 0 });
 		expect(reporter.ctrfReport.results.tests[0].testId).toBe("file-a-case");
 	});
@@ -49,7 +55,8 @@ it("starts a fresh run when the runner reuses the reporter", () => {
 		duration: 1,
 	});
 	expect(reporter.ctrfReport.results.tests.length).toBe(1);
-	expect(reporter.ctrfReport.runId).not.toBe(first.runId);
+	expect(reporter.ctrfReport.runId).toBeUndefined();
+	expect(first.runId).toBeUndefined();
 	expect(reporter.ctrfReport.reportId).not.toBe(first.reportId);
 	expect(reporter.ctrfReport.results.tests[0].testId).toBe(logical);
 });

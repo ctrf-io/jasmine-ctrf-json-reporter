@@ -1,9 +1,4 @@
-import {
-	identityValue,
-	runIdentity,
-	testIdentity,
-	type IdentityOptions,
-} from "./identity";
+import { identityValue, testIdentity, type IdentityOptions } from "./identity";
 import type {
 	CTRFReport,
 	Test as CtrfTestBase,
@@ -66,7 +61,7 @@ export default class GenerateCtrfReport implements jasmine.CustomReporter {
 		};
 		this.ctrfReport = {
 			reportFormat: "CTRF",
-			runId: runIdentity(this.reporterConfigOptions.runId),
+			runId: this.reporterConfigOptions.runId || undefined,
 			specVersion: CURRENT_SPEC_VERSION,
 			reportId: crypto.randomUUID(),
 			timestamp: new Date().toISOString(),
@@ -136,7 +131,7 @@ export default class GenerateCtrfReport implements jasmine.CustomReporter {
 		if (this.runStarted) {
 			this.ctrfReport.reportId = crypto.randomUUID();
 			this.ctrfReport.timestamp = new Date().toISOString();
-			this.ctrfReport.runId = runIdentity(this.reporterConfigOptions.runId);
+			this.ctrfReport.runId = this.reporterConfigOptions.runId || undefined;
 			this.ctrfReport.results.tests = [];
 			this.ctrfReport.results.summary = {
 				tests: 0,
