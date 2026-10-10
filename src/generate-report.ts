@@ -1,3 +1,9 @@
+import {
+	identityValue,
+	runIdentity,
+	testIdentity,
+	type IdentityOptions,
+} from "./identity";
 import type {
 	CTRFReport,
 	Test as CtrfTestBase,
@@ -14,7 +20,7 @@ import {
 	type RuntimeMessage,
 } from "./runtime";
 
-interface ReporterConfigOptions {
+interface ReporterConfigOptions extends IdentityOptions {
 	outputFile?: string;
 	outputDir?: string;
 	minimal?: boolean;
@@ -40,10 +46,14 @@ export default class GenerateCtrfReport implements jasmine.CustomReporter {
 
 	// Track current spec for runtime API
 	private currentSpecId: string | null = null;
+	private suitePath: string[] = [];
 	private pendingMessages: Map<string, RuntimeMessage[]> = new Map();
 
 	constructor(reporterOptions: ReporterConfigOptions) {
 		this.reporterConfigOptions = {
+			runId: reporterOptions?.runId,
+			shardId: identityValue(reporterOptions?.shardId, "shardId"),
+			testIdResolver: reporterOptions?.testIdResolver,
 			outputFile: reporterOptions?.outputFile ?? this.defaultOutputFile,
 			outputDir: reporterOptions?.outputDir ?? this.defaultOutputDir,
 			appName: reporterOptions?.appName ?? undefined,
@@ -56,6 +66,7 @@ export default class GenerateCtrfReport implements jasmine.CustomReporter {
 		};
 		this.ctrfReport = {
 			reportFormat: "CTRF",
+			runId: runIdentity(this.reporterConfigOptions.runId),
 			specVersion: CURRENT_SPEC_VERSION,
 			reportId: crypto.randomUUID(),
 			timestamp: new Date().toISOString(),
@@ -119,7 +130,30 @@ export default class GenerateCtrfReport implements jasmine.CustomReporter {
 		this.pendingMessages.get(this.currentSpecId)?.push(message);
 	}
 
+	private runStarted = false;
+
 	jasmineStarted(suiteInfo: jasmine.JasmineStartedInfo): void {
+		if (this.runStarted) {
+			this.ctrfReport.reportId = crypto.randomUUID();
+			this.ctrfReport.timestamp = new Date().toISOString();
+			this.ctrfReport.runId = runIdentity(this.reporterConfigOptions.runId);
+			this.ctrfReport.results.tests = [];
+			this.ctrfReport.results.summary = {
+				tests: 0,
+				passed: 0,
+				failed: 0,
+				skipped: 0,
+				pending: 0,
+				other: 0,
+				start: 0,
+				stop: 0,
+			};
+		}
+		this.runStarted = true;
+		this.suitePath = [];
+		this.pendingMessages.clear();
+		this.currentSpecId = null;
+
 		fs.writeFileSync("suite-info.json", JSON.stringify(suiteInfo));
 		this.ctrfReport.results.summary.start = Date.now();
 		this.setEnvironmentDetails(this.reporterConfigOptions ?? {});
@@ -131,8 +165,14 @@ export default class GenerateCtrfReport implements jasmine.CustomReporter {
 	/**
 	 * Track spec begin for runtime context
 	 */
+	suiteStarted(result: jasmine.SuiteResult): void {
+		this.suitePath.push(result.description);
+	}
+	suiteDone(): void {
+		this.suitePath.pop();
+	}
 	specStarted(result: jasmine.SpecResult): void {
-		this.currentSpecId = result.fullName;
+		this.currentSpecId = result.id;
 	}
 
 	specDone(result: jasmine.SpecResult): void {
@@ -200,6 +240,15 @@ export default class GenerateCtrfReport implements jasmine.CustomReporter {
 
 	private updateCtrfTestResultsFromTestStats(result: any): void {
 		const test: CtrfTestBase = {
+			testId: testIdentity(
+				"jasmine",
+				{
+					name: result.description ?? result.fullName,
+					suite: [...this.suitePath],
+				},
+				this.reporterConfigOptions,
+			),
+			executionId: crypto.randomUUID(),
 			name: result.fullName,
 			status: this.mapStatus(result.status),
 			duration: typeof result.duration === "number" ? result.duration : 0,
@@ -209,7 +258,7 @@ export default class GenerateCtrfReport implements jasmine.CustomReporter {
 		test.trace = this.extractFailureDetails(result).trace;
 
 		// Apply any pending runtime messages (extra data) to this test
-		const specId = result.fullName;
+		const specId = result.id;
 		const messages = this.pendingMessages.get(specId);
 		if (messages && messages.length > 0) {
 			for (const message of messages) {
@@ -268,6 +317,11 @@ export default class GenerateCtrfReport implements jasmine.CustomReporter {
 	}
 
 	setEnvironmentDetails(reporterConfigOptions: ReporterConfigOptions): void {
+		if (reporterConfigOptions.shardId !== undefined)
+			this.ctrfEnvironment.shardId = identityValue(
+				reporterConfigOptions.shardId,
+				"shardId",
+			);
 		if (reporterConfigOptions.appName !== undefined) {
 			this.ctrfEnvironment.appName = reporterConfigOptions.appName;
 		}
