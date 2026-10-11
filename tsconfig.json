@@ -11,8 +11,7 @@
 		"declaration": true,
 		"declarationDir": "./dist",
 		"forceConsistentCasingInFileNames": true,
-		"types": ["jasmine", "node"],
-		"ignoreDeprecations": "6.0"
+		"types": ["jasmine", "node"]
 	},
 	"include": ["src/**/*"],
 	"exclude": [
