@@ -336,7 +336,13 @@ export default class GenerateCtrfReport implements jasmine.CustomReporter {
 			this.ctrfEnvironment.buildName = reporterConfigOptions.buildName;
 		}
 		if (reporterConfigOptions.buildNumber !== undefined) {
-			this.ctrfEnvironment.buildNumber = reporterConfigOptions.buildNumber;
+			if (Number.isInteger(reporterConfigOptions.buildNumber)) {
+				this.ctrfEnvironment.buildNumber = reporterConfigOptions.buildNumber;
+			} else {
+				console.warn(
+					"[CTRF] buildNumber must be a finite integer; omitting invalid value.",
+				);
+			}
 		}
 	}
 
